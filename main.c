@@ -1,5 +1,12 @@
-int main(int ac, char *av[])
+#include "lib/ft_ls.h"
+
+int	main(int ac, char **av)
 {
+	t_args	args;
+	int		status;
+
+	status = parse_args(ac, av, &args);
+	free(args.paths);
 	// 1. Parse the command line.
 	//    Separate flags (-l, -R, -a, -r, -t) from paths.
 	//    Combined flags like -la count as both -l and -a.
@@ -39,5 +46,5 @@ int main(int ac, char *av[])
 	//    Compare ls and ./ft_ls on the same arguments:
 	//    a missing file, a mix of files and directories, ls -l, and ls -lR.
 
-	return (0);
+	return (status);
 }
