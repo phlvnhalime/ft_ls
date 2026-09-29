@@ -13,5 +13,22 @@
 # include <stdio.h> // printf
 # include <stdbool.h> // true, false
 
+typedef struct s_flags
+{
+	bool	l;
+	bool	R;
+	bool	a;
+	bool	r;
+	bool	t;
+}	t_flags;
+
+typedef struct s_args
+{
+	t_flags	flags;
+	char	**paths;
+	int		path_count;
+}	t_args;
+
+int	parse_args(int ac, char **av, t_args *args);
 
 #endif
