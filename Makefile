@@ -1,9 +1,10 @@
 name = ft_ls
+src = main.c src/parse.c
 
 all : $(name)
 
-$(name) : $(name).c
-	gcc -Wall -Wextra -Werror -o $(name) $(name).c
+$(name) : $(src) lib/ft_ls.h
+	gcc -Wall -Wextra -Werror -I lib -o $(name) $(src)
 
 clean :
 	rm -f $(name)
