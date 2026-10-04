@@ -1,14 +1,5 @@
 #include "../lib/ft_ls.h"
 
-static void	ft_putstr_fd(int fd, char *str)
-{
-	int	len;
-
-	len = 0;
-	while (str[len])
-		len++;
-	write(fd, str, len);
-}
 
 static void	illegal_option(char *prog, char option)
 {
