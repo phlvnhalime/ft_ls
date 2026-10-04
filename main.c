@@ -5,13 +5,16 @@ int	main(int ac, char **av)
 	t_args	args;
 	int		status;
 
-	status = parse_args(ac, av, &args);
-	free(args.paths);
 	// 1. Parse the command line.
 	//    Separate flags (-l, -R, -a, -r, -t) from paths.
 	//    Combined flags like -la count as both -l and -a.
 	//    If there is no path, use ".".
 	//    A bad flag prints an error like ls and stops.
+	status = parse_args(ac, av, &args);
+	if (status == 0)
+		status = run_ls(&args, av[0]);
+	free(args.paths);
+	return (status);
 
 	// 2. Define one file structure.
 	//    It holds the name, the full path, and the lstat result.
