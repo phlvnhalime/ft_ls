@@ -1,0 +1,16 @@
+# ft_ls tests
+
+Compares `./ft_ls` to system `ls` on a fixed fixture tree (stdout, stderr, exit code).
+
+```bash
+bash tests/run_tests.sh      # quick run
+bash tests/run_tests.sh -v   # + valgrind on each case
+bash tests/run_tests.sh -k   # keep tests/.work for debugging
+```
+
+Run as your normal user (not root), or permission cases are meaningless.
+
+Mandatory coverage: `-l`, `-R`, `-a`, `-r`, `-t`, operands, errors, unreadable /
+not-searchable directories, device lines, future file dates.
+
+Not tested (bonus): ACL `+`, multi-column layout, colors, extra options.
