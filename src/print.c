@@ -1,17 +1,31 @@
 #include "../lib/ft_ls.h"
 
-#if defined(__linux__)
-# include <sys/sysmacros.h>
-#endif
+/*
+ * Output: one name per line, or -l long format.
+ *
+ * -l: "total" line, aligned columns; extra operand widths when files+dirs.
+ * Dates: HH:MM if within ~6 months and not in the future, else year.
+ * Devices: major, minor from st_rdev (no <sys/sysmacros.h> — subject list).
+ * Failed lstat: line like -????????? ? ? ? ?            ? name
+ */
 
-typedef struct s_width
+/*
+ * Decodes st_rdev like glibc major(), without <sys/sysmacros.h>.
+ */
+static unsigned int	dev_major(dev_t dev)
 {
-	int	nlink;
-	int	user;
-	int	group;
-	int	size;
-}	t_width;
+	return (((dev >> 8) & 0xfff) | ((unsigned int)(dev >> 32) & ~0xfffu));
+}
 
+/*
+ * Decodes st_rdev like glibc minor(), without <sys/sysmacros.h>.
+ */
+static unsigned int	dev_minor(dev_t dev)
+{
+	return ((dev & 0xff) | ((unsigned int)(dev >> 12) & ~0xffu));
+}
+
+/* Writes n in decimal into buf (needs at least 21 bytes). */
 static void	ull_to_str(unsigned long long n, char *buf)
 {
 	char	tmp[32];
@@ -32,6 +46,7 @@ static void	ull_to_str(unsigned long long n, char *buf)
 	buf[j] = '\0';
 }
 
+/* Number of decimal digits of n. */
 static int	ull_len(unsigned long long n)
 {
 	int	len;
@@ -45,6 +60,7 @@ static int	ull_len(unsigned long long n)
 	return (len);
 }
 
+/* Prints an unsigned number to stdout with no padding. */
 static void	put_ull(unsigned long long n)
 {
 	char	buf[32];
@@ -53,6 +69,7 @@ static void	put_ull(unsigned long long n)
 	ft_putstr_fd(buf, 1);
 }
 
+/* Writes n spaces to stdout. */
 static void	pad_spaces(int n)
 {
 	while (n > 0)
@@ -62,6 +79,7 @@ static void	pad_spaces(int n)
 	}
 }
 
+/* Copies src into dst with a hard capacity limit (always NUL-terminated). */
 static void	copy_str(char *dst, char *src, size_t cap)
 {
 	size_t	i;
@@ -77,6 +95,7 @@ static void	copy_str(char *dst, char *src, size_t cap)
 	dst[i] = '\0';
 }
 
+/* Resolves owner name from uid, or writes the numeric id if unknown. */
 static void	owner_name(uid_t uid, char *buf, size_t cap)
 {
 	struct passwd	*pw;
@@ -89,6 +108,7 @@ static void	owner_name(uid_t uid, char *buf, size_t cap)
 	(void)cap;
 }
 
+/* Resolves group name from gid, or writes the numeric id if unknown. */
 static void	group_name(gid_t gid, char *buf, size_t cap)
 {
 	struct group	*gr;
@@ -101,6 +121,10 @@ static void	group_name(gid_t gid, char *buf, size_t cap)
 	(void)cap;
 }
 
+/*
+ * Builds the 10-character mode string (e.g. "drwxr-xr-x").
+ * setuid / setgid / sticky use s/S/t/T like ls.
+ */
 static void	fill_mode(mode_t mode, char *buf)
 {
 	const char	*rwx = "rwxrwxrwx";
@@ -140,18 +164,23 @@ static void	fill_mode(mode_t mode, char *buf)
 	buf[10] = '\0';
 }
 
+/*
+ * Returns 1 if mtime should show "HH:MM" instead of the year.
+ * Future timestamps always use the year (GNU ls behaviour).
+ */
 static int	is_recent(time_t mtime)
 {
 	time_t	now;
-	time_t	six;
 
 	now = time(NULL);
-	six = (time_t)15778476;
 	if (mtime > now)
-		return ((mtime - now) <= six);
-	return ((now - mtime) <= six);
+		return (0);
+	return ((now - mtime) <= (time_t)15778476);
 }
 
+/*
+ * Writes the 12-character date column: "Mmm dd HH:MM" or "Mmm dd  YYYY".
+ */
 static void	format_date(time_t mtime, char *out)
 {
 	char	*ct;
@@ -188,6 +217,9 @@ static void	format_date(time_t mtime, char *out)
 	out[12] = '\0';
 }
 
+/*
+ * Size column text: byte size, or "major, minor" for device files.
+ */
 static void	fill_size(struct stat *st, char *buf)
 {
 	char	minor_buf[32];
@@ -196,13 +228,13 @@ static void	fill_size(struct stat *st, char *buf)
 
 	if (S_ISCHR(st->st_mode) || S_ISBLK(st->st_mode))
 	{
-		ull_to_str((unsigned long long)major(st->st_rdev), buf);
+		ull_to_str((unsigned long long)dev_major(st->st_rdev), buf);
 		i = 0;
 		while (buf[i])
 			i++;
 		buf[i++] = ',';
 		buf[i++] = ' ';
-		ull_to_str((unsigned long long)minor(st->st_rdev), minor_buf);
+		ull_to_str((unsigned long long)dev_minor(st->st_rdev), minor_buf);
 		j = 0;
 		while (minor_buf[j])
 			buf[i++] = minor_buf[j++];
@@ -212,43 +244,51 @@ static void	fill_size(struct stat *st, char *buf)
 	ull_to_str((unsigned long long)st->st_size, buf);
 }
 
+/*
+ * Disk usage units for the "total" line (GNU ls: 1024-byte blocks on Linux).
+ */
 static long long	block_units(struct stat *st)
 {
-#if defined(__APPLE__)
-	return ((long long)st->st_blocks);
-#else
 	return ((long long)st->st_blocks / 2);
-#endif
 }
 
+/* Raises *width to len when len is larger. */
+static void	widen(int *width, int len)
+{
+	if (len > *width)
+		*width = len;
+}
+
+/* Widens columns so every entry in list fits (including "?" placeholders). */
 static void	measure_add(t_file *list, t_width *width)
 {
 	char	user[256];
 	char	group[256];
 	char	size[64];
-	int		len;
 
 	while (list)
 	{
-		len = ull_len((unsigned long long)list->st.st_nlink);
-		if (len > width->nlink)
-			width->nlink = len;
+		if (!list->ok)
+		{
+			widen(&width->nlink, 1);
+			widen(&width->user, 1);
+			widen(&width->group, 1);
+			widen(&width->size, 1);
+			list = list->next;
+			continue ;
+		}
+		widen(&width->nlink, ull_len((unsigned long long)list->st.st_nlink));
 		owner_name(list->st.st_uid, user, sizeof(user));
 		group_name(list->st.st_gid, group, sizeof(group));
 		fill_size(&list->st, size);
-		len = (int)ft_strlen(user);
-		if (len > width->user)
-			width->user = len;
-		len = (int)ft_strlen(group);
-		if (len > width->group)
-			width->group = len;
-		len = (int)ft_strlen(size);
-		if (len > width->size)
-			width->size = len;
+		widen(&width->user, (int)ft_strlen(user));
+		widen(&width->group, (int)ft_strlen(group));
+		widen(&width->size, (int)ft_strlen(size));
 		list = list->next;
 	}
 }
 
+/* Resets widths then measures list. */
 static void	measure(t_file *list, t_width *width)
 {
 	width->nlink = 1;
@@ -258,12 +298,13 @@ static void	measure(t_file *list, t_width *width)
 	measure_add(list, width);
 }
 
+/* Prints " -> target" after a symbolic link's name. */
 static void	print_link_target(t_file *file)
 {
 	char	target[4096];
 	ssize_t	n;
 
-	if (!S_ISLNK(file->st.st_mode))
+	if (!file->ok || !S_ISLNK(file->st.st_mode))
 		return ;
 	n = readlink(file->path, target, sizeof(target) - 1);
 	if (n < 0)
@@ -273,40 +314,72 @@ static void	print_link_target(t_file *file)
 	ft_putstr_fd(target, 1);
 }
 
+/* Prints s left-aligned in a column of width. */
+static void	put_left(char *s, int width)
+{
+	ft_putstr_fd(s, 1);
+	pad_spaces(width - (int)ft_strlen(s));
+}
+
+/* Prints s right-aligned in a column of width. */
+static void	put_right(char *s, int width)
+{
+	pad_spaces(width - (int)ft_strlen(s));
+	ft_putstr_fd(s, 1);
+}
+
+/*
+ * Fills the -l fields for one entry. When lstat failed, every field is "?".
+ */
+static void	fill_lfields(t_file *file, t_lfields *f)
+{
+	if (!file->ok)
+	{
+		f->mode[0] = file->type;
+		ft_memset(f->mode + 1, '?', 9);
+		f->mode[10] = '\0';
+		ft_strlcpy(f->nlink, "?", sizeof(f->nlink));
+		ft_strlcpy(f->user, "?", sizeof(f->user));
+		ft_strlcpy(f->group, "?", sizeof(f->group));
+		ft_strlcpy(f->size, "?", sizeof(f->size));
+		ft_strlcpy(f->date, "?", sizeof(f->date));
+		return ;
+	}
+	fill_mode(file->st.st_mode, f->mode);
+	ull_to_str((unsigned long long)file->st.st_nlink, f->nlink);
+	owner_name(file->st.st_uid, f->user, sizeof(f->user));
+	group_name(file->st.st_gid, f->group, sizeof(f->group));
+	fill_size(&file->st, f->size);
+	format_date(file->st.st_mtime, f->date);
+}
+
+/*
+ * Prints one -l line:
+ * mode nlink user group size date name [-> target]
+ */
 static void	print_long_line(t_file *file, t_width *width)
 {
-	char	mode[11];
-	char	date[13];
-	char	user[256];
-	char	group[256];
-	char	size[64];
+	t_lfields	f;
 
-	fill_mode(file->st.st_mode, mode);
-	format_date(file->st.st_mtime, date);
-	owner_name(file->st.st_uid, user, sizeof(user));
-	group_name(file->st.st_gid, group, sizeof(group));
-	fill_size(&file->st, size);
-	ft_putstr_fd(mode, 1);
+	fill_lfields(file, &f);
+	ft_putstr_fd(f.mode, 1);
 	ft_putchar_fd(' ', 1);
-	pad_spaces(width->nlink - ull_len((unsigned long long)file->st.st_nlink));
-	put_ull((unsigned long long)file->st.st_nlink);
+	put_right(f.nlink, width->nlink);
 	ft_putchar_fd(' ', 1);
-	ft_putstr_fd(user, 1);
-	pad_spaces(width->user - (int)ft_strlen(user));
+	put_left(f.user, width->user);
 	ft_putchar_fd(' ', 1);
-	ft_putstr_fd(group, 1);
-	pad_spaces(width->group - (int)ft_strlen(group));
+	put_left(f.group, width->group);
 	ft_putchar_fd(' ', 1);
-	pad_spaces(width->size - (int)ft_strlen(size));
-	ft_putstr_fd(size, 1);
+	put_right(f.size, width->size);
 	ft_putchar_fd(' ', 1);
-	ft_putstr_fd(date, 1);
+	put_right(f.date, 12);
 	ft_putchar_fd(' ', 1);
 	ft_putstr_fd(file->name, 1);
 	print_link_target(file);
 	ft_putchar_fd('\n', 1);
 }
 
+/* Prints "total N" for a directory listing in -l mode. */
 static void	print_total(t_file *list)
 {
 	long long	total;
@@ -314,7 +387,8 @@ static void	print_total(t_file *list)
 	total = 0;
 	while (list)
 	{
-		total += block_units(&list->st);
+		if (list->ok)
+			total += block_units(&list->st);
 		list = list->next;
 	}
 	ft_putstr_fd("total ", 1);
@@ -322,6 +396,12 @@ static void	print_total(t_file *list)
 	ft_putchar_fd('\n', 1);
 }
 
+/*
+ * Prints a sorted block of entries.
+ * With -l: long format (as_dir also prints "total").
+ * Without -l: one name per line.
+ * extra takes part in column widths when file and directory operands share -l.
+ */
 void	print_files(t_file *list, t_flags *flags, int as_dir, t_file *extra)
 {
 	t_width	width;
