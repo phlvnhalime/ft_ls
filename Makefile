@@ -1,23 +1,27 @@
-name = ft_ls
-src = main.c src/parse.c
+NAME		= ft_ls
+CC			= gcc
+CFLAGS		= -Wall -Wextra -Werror
+LIBFT_DIR	= libft
+LIBFT		= $(LIBFT_DIR)/libft.a
 
-all : $(name)
+SRC			= main.c src/parse.c src/run.c src/print.c src/sort.c src/utils.c
+LIBFT_SRC	= $(wildcard $(LIBFT_DIR)/*.c) $(LIBFT_DIR)/libft.h $(LIBFT_DIR)/Makefile
 
-$(name) : $(src) lib/ft_ls.h
-	gcc -Wall -Wextra -Werror -I lib -o $(name) $(src)
+all: $(NAME)
 
-clean :
-	rm -f $(name)
+$(LIBFT): $(LIBFT_SRC)
+	make -C $(LIBFT_DIR)
 
-fclean : clean
-	rm -f $(name)
+$(NAME): $(LIBFT) $(SRC) lib/ft_ls.h
+	$(CC) $(CFLAGS) -I lib -I $(LIBFT_DIR) $(SRC) $(LIBFT) -o $(NAME)
 
-re : fclean all
+clean:
+	make -C $(LIBFT_DIR) clean
 
-test: --valgrind
-	./$(name)
+fclean: clean
+	make -C $(LIBFT_DIR) fclean
+	rm -f $(NAME)
 
-valgrind :
-	valgrind --leak-check=full --show-leak-kinds=all ./$(name)
+re: fclean all
 
-.PHONY : all clean fclean re test valgrind
+.PHONY: all clean fclean re
