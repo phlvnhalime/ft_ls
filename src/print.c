@@ -50,14 +50,14 @@ static void	put_ull(unsigned long long n)
 	char	buf[32];
 
 	ull_to_str(n, buf);
-	ft_putstr_fd(1, buf);
+	ft_putstr_fd(buf, 1);
 }
 
 static void	pad_spaces(int n)
 {
 	while (n > 0)
 	{
-		ft_putchar_fd(1, ' ');
+		ft_putchar_fd(' ', 1);
 		n--;
 	}
 }
@@ -221,17 +221,13 @@ static long long	block_units(struct stat *st)
 #endif
 }
 
-static void	measure(t_file *list, t_width *width)
+static void	measure_add(t_file *list, t_width *width)
 {
 	char	user[256];
 	char	group[256];
 	char	size[64];
 	int		len;
 
-	width->nlink = 1;
-	width->user = 0;
-	width->group = 0;
-	width->size = 1;
 	while (list)
 	{
 		len = ull_len((unsigned long long)list->st.st_nlink);
@@ -253,6 +249,15 @@ static void	measure(t_file *list, t_width *width)
 	}
 }
 
+static void	measure(t_file *list, t_width *width)
+{
+	width->nlink = 1;
+	width->user = 0;
+	width->group = 0;
+	width->size = 1;
+	measure_add(list, width);
+}
+
 static void	print_link_target(t_file *file)
 {
 	char	target[4096];
@@ -264,8 +269,8 @@ static void	print_link_target(t_file *file)
 	if (n < 0)
 		return ;
 	target[n] = '\0';
-	ft_putstr_fd(1, " -> ");
-	ft_putstr_fd(1, target);
+	ft_putstr_fd(" -> ", 1);
+	ft_putstr_fd(target, 1);
 }
 
 static void	print_long_line(t_file *file, t_width *width)
@@ -281,25 +286,25 @@ static void	print_long_line(t_file *file, t_width *width)
 	owner_name(file->st.st_uid, user, sizeof(user));
 	group_name(file->st.st_gid, group, sizeof(group));
 	fill_size(&file->st, size);
-	ft_putstr_fd(1, mode);
-	ft_putstr_fd(1, "  ");
+	ft_putstr_fd(mode, 1);
+	ft_putchar_fd(' ', 1);
 	pad_spaces(width->nlink - ull_len((unsigned long long)file->st.st_nlink));
 	put_ull((unsigned long long)file->st.st_nlink);
-	ft_putchar_fd(1, ' ');
-	ft_putstr_fd(1, user);
+	ft_putchar_fd(' ', 1);
+	ft_putstr_fd(user, 1);
 	pad_spaces(width->user - (int)ft_strlen(user));
-	ft_putstr_fd(1, "  ");
-	ft_putstr_fd(1, group);
+	ft_putchar_fd(' ', 1);
+	ft_putstr_fd(group, 1);
 	pad_spaces(width->group - (int)ft_strlen(group));
-	ft_putstr_fd(1, "  ");
+	ft_putchar_fd(' ', 1);
 	pad_spaces(width->size - (int)ft_strlen(size));
-	ft_putstr_fd(1, size);
-	ft_putchar_fd(1, ' ');
-	ft_putstr_fd(1, date);
-	ft_putchar_fd(1, ' ');
-	ft_putstr_fd(1, file->name);
+	ft_putstr_fd(size, 1);
+	ft_putchar_fd(' ', 1);
+	ft_putstr_fd(date, 1);
+	ft_putchar_fd(' ', 1);
+	ft_putstr_fd(file->name, 1);
 	print_link_target(file);
-	ft_putchar_fd(1, '\n');
+	ft_putchar_fd('\n', 1);
 }
 
 static void	print_total(t_file *list)
@@ -312,12 +317,12 @@ static void	print_total(t_file *list)
 		total += block_units(&list->st);
 		list = list->next;
 	}
-	ft_putstr_fd(1, "total ");
+	ft_putstr_fd("total ", 1);
 	put_ull((unsigned long long)total);
-	ft_putchar_fd(1, '\n');
+	ft_putchar_fd('\n', 1);
 }
 
-void	print_files(t_file *list, t_flags *flags, int as_dir)
+void	print_files(t_file *list, t_flags *flags, int as_dir, t_file *extra)
 {
 	t_width	width;
 	t_file	*it;
@@ -327,6 +332,7 @@ void	print_files(t_file *list, t_flags *flags, int as_dir)
 		if (as_dir)
 			print_total(list);
 		measure(list, &width);
+		measure_add(extra, &width);
 		it = list;
 		while (it)
 		{
@@ -337,8 +343,8 @@ void	print_files(t_file *list, t_flags *flags, int as_dir)
 	}
 	while (list)
 	{
-		ft_putstr_fd(1, list->name);
-		ft_putchar_fd(1, '\n');
+		ft_putstr_fd(list->name, 1);
+		ft_putchar_fd('\n', 1);
 		list = list->next;
 	}
 }
