@@ -85,8 +85,14 @@ static t_file	*make_operand(char *path, t_flags *flags)
 	return (file);
 }
 
+static void	raise_status(int *status, int code)
+{
+	if (code > *status)
+		*status = code;
+}
+
 static int	read_directory(char *path, t_flags *flags, char *prog,
-				t_file **out, int *status)
+				t_file **out, int *status, int open_fail)
 {
 	DIR				*dir;
 	struct dirent	*ent;
@@ -99,8 +105,8 @@ static int	read_directory(char *path, t_flags *flags, char *prog,
 	dir = opendir(path);
 	if (!dir)
 	{
-		print_error(prog, path, errno);
-		*status = 1;
+		print_error(prog, "cannot open directory", path, errno);
+		raise_status(status, open_fail);
 		return (1);
 	}
 	head = NULL;
@@ -116,17 +122,18 @@ static int	read_directory(char *path, t_flags *flags, char *prog,
 		{
 			free_files(head);
 			closedir(dir);
-			print_error(prog, "malloc", errno);
-			*status = 1;
+			ft_putstr_fd(prog, 2);
+			ft_putstr_fd(": malloc error\n", 2);
+			raise_status(status, 2);
 			return (1);
 		}
 		if (lstat(node->path, &node->st) != 0)
 		{
-			print_error(prog, node->path, errno);
+			print_error(prog, "cannot access", node->path, errno);
 			free(node->name);
 			free(node->path);
 			free(node);
-			*status = 1;
+			raise_status(status, 1);
 			errno = 0;
 			continue ;
 		}
@@ -137,10 +144,10 @@ static int	read_directory(char *path, t_flags *flags, char *prog,
 	}
 	if (errno != 0)
 	{
-		print_error(prog, path, errno);
+		print_error(prog, "reading directory", path, errno);
 		free_files(head);
 		closedir(dir);
-		*status = 1;
+		raise_status(status, 1);
 		return (1);
 	}
 	closedir(dir);
@@ -159,39 +166,35 @@ static int	is_dot(char *name)
 	return (0);
 }
 
-static void	list_directory(char *path, t_flags *flags, char *prog,
-				int show_header, int *status)
+static int	list_directory(char *path, t_flags *flags, char *prog,
+				int show_header, int need_blank, int open_fail, int *status)
 {
 	t_file	*list;
 	t_file	*it;
 
+	if (read_directory(path, flags, prog, &list, status, open_fail) != 0)
+		return (0);
+	if (need_blank)
+		ft_putchar_fd('\n', 1);
 	if (show_header)
 	{
-		ft_putstr_fd(1, path);
-		ft_putstr_fd(1, ":\n");
-	}
-	if (read_directory(path, flags, prog, &list, status) != 0)
-	{
-		if (flags->l)
-			ft_putstr_fd(1, "total 0\n");
-		return ;
+		ft_putstr_fd(path, 1);
+		ft_putstr_fd(":\n", 1);
 	}
 	list = sort_files(list, flags);
-	print_files(list, flags, 1);
+	print_files(list, flags, 1, NULL);
 	if (flags->R)
 	{
 		it = list;
 		while (it)
 		{
 			if (it->is_dir && !is_dot(it->name))
-			{
-				ft_putchar_fd(1, '\n');
-				list_directory(it->path, flags, prog, 1, status);
-			}
+				list_directory(it->path, flags, prog, 1, 1, 1, status);
 			it = it->next;
 		}
 	}
 	free_files(list);
+	return (1);
 }
 
 static void	partition(t_file *all, t_file **errors, t_file **files,
@@ -222,19 +225,6 @@ static void	partition(t_file *all, t_file **errors, t_file **files,
 	}
 }
 
-static int	list_len(t_file *list)
-{
-	int	len;
-
-	len = 0;
-	while (list)
-	{
-		len++;
-		list = list->next;
-	}
-	return (len);
-}
-
 int	run_ls(t_args *args, char *prog)
 {
 	t_file	*all;
@@ -258,8 +248,9 @@ int	run_ls(t_args *args, char *prog)
 				make_operand(args->paths[i], &args->flags)) != 0)
 		{
 			free_files(all);
-			print_error(prog, "malloc", errno);
-			return (1);
+			ft_putstr_fd(prog, 2);
+			ft_putstr_fd(": malloc error\n", 2);
+			return (2);
 		}
 		i++;
 	}
@@ -270,24 +261,23 @@ int	run_ls(t_args *args, char *prog)
 	it = errors;
 	while (it)
 	{
-		print_error(prog, it->name, it->err_no);
-		status = 1;
+		print_error(prog, "cannot access", it->name, it->err_no);
+		raise_status(&status, 2);
 		it = it->next;
 	}
 	printed = 0;
 	if (files)
 	{
-		print_files(files, &args->flags, 0);
+		print_files(files, &args->flags, 0, dirs);
 		printed = 1;
 	}
-	header = (list_len(dirs) > 1) || (files != NULL);
+	header = (args->path_count > 1) || args->flags.R;
 	it = dirs;
 	while (it)
 	{
-		if (printed)
-			ft_putchar_fd(1, '\n');
-		list_directory(it->path, &args->flags, prog, header, &status);
-		printed = 1;
+		if (list_directory(it->path, &args->flags, prog, header, printed, 2,
+				&status))
+			printed = 1;
 		it = it->next;
 	}
 	free_files(errors);
