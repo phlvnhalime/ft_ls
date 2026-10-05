@@ -3,16 +3,12 @@
 
 static void	illegal_option(char *prog, char option)
 {
-	char	letter[2];
-
-	letter[0] = option;
-	letter[1] = '\0';
-	ft_putstr_fd(2, prog);
-	ft_putstr_fd(2, ": invalid option -- ");
-	ft_putstr_fd(2, letter);
-	ft_putstr_fd(2, "\nusage: ");
-	ft_putstr_fd(2, prog);
-	ft_putstr_fd(2, " [-Ralrt] [file ...]\n");
+	ft_putstr_fd(prog, 2);
+	ft_putstr_fd(": invalid option -- '", 2);
+	ft_putchar_fd(option, 2);
+	ft_putstr_fd("'\nTry '", 2);
+	ft_putstr_fd(prog, 2);
+	ft_putstr_fd(" --help' for more information.\n", 2);
 }
 
 static int	same_word(char *a, char *b)
@@ -93,9 +89,9 @@ static int	alloc_paths(t_args *args, int ac, char *prog)
 	args->paths = malloc(sizeof(char *) * (size_t)ac);
 	if (!args->paths)
 	{
-		ft_putstr_fd(2, prog);
-		ft_putstr_fd(2, ": malloc error\n");
-		return (1);
+		ft_putstr_fd(prog, 2);
+		ft_putstr_fd(": malloc error\n", 2);
+		return (2);
 	}
 	return (0);
 }
@@ -113,7 +109,6 @@ static int	take_argument(t_args *args, char **av, int i, int *paths_only)
 			return (1);
 		return (0);
 	}
-	*paths_only = 1;
 	args->paths[args->path_count] = av[i];
 	args->path_count++;
 	return (0);
@@ -126,7 +121,7 @@ int	parse_args(int ac, char **av, t_args *args)
 
 	init_args(args);
 	if (alloc_paths(args, ac, av[0]) != 0)
-		return (1);
+		return (2);
 	i = 1;
 	paths_only = 0;
 	while (i < ac)
@@ -136,7 +131,7 @@ int	parse_args(int ac, char **av, t_args *args)
 			free(args->paths);
 			args->paths = NULL;
 			args->path_count = 0;
-			return (1);
+			return (2);
 		}
 		i++;
 	}
