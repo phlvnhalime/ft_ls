@@ -1,43 +1,8 @@
 #include "../lib/ft_ls.h"
 
-size_t	ft_strlen(char *str)
-{
-	size_t	len;
-
-	len = 0;
-	while (str[len])
-		len++;
-	return (len);
-}
-
 int	ft_strcmp(char *a, char *b)
 {
-	size_t	i;
-
-	i = 0;
-	while (a[i] && (unsigned char)a[i] == (unsigned char)b[i])
-		i++;
-	return ((unsigned char)a[i] - (unsigned char)b[i]);
-}
-
-char	*ft_strdup(char *str)
-{
-	size_t	len;
-	size_t	i;
-	char	*dup;
-
-	len = ft_strlen(str);
-	dup = malloc(len + 1);
-	if (!dup)
-		return (NULL);
-	i = 0;
-	while (i < len)
-	{
-		dup[i] = str[i];
-		i++;
-	}
-	dup[i] = '\0';
-	return (dup);
+	return (ft_strncmp(a, b, ft_strlen(a) + ft_strlen(b) + 1));
 }
 
 char	*join_path(char *dir, char *name)
@@ -72,24 +37,28 @@ char	*join_path(char *dir, char *name)
 	return (path);
 }
 
-void	ft_putchar_fd(int fd, char c)
+static void	put_quoted(char *str)
 {
-	write(fd, &c, 1);
+	ft_putchar_fd('\'', 2);
+	while (str && *str)
+	{
+		if (*str == '\'')
+			ft_putstr_fd("'\\''", 2);
+		else
+			ft_putchar_fd(*str, 2);
+		str++;
+	}
+	ft_putchar_fd('\'', 2);
 }
 
-void	ft_putstr_fd(int fd, char *str)
+void	print_error(char *prog, char *phrase, char *path, int err)
 {
-	if (!str)
-		return ;
-	write(fd, str, ft_strlen(str));
-}
-
-void	print_error(char *prog, char *path, int err)
-{
-	ft_putstr_fd(2, prog);
-	ft_putstr_fd(2, ": ");
-	ft_putstr_fd(2, path);
-	ft_putstr_fd(2, ": ");
-	ft_putstr_fd(2, strerror(err));
-	ft_putstr_fd(2, "\n");
+	ft_putstr_fd(prog, 2);
+	ft_putstr_fd(": ", 2);
+	ft_putstr_fd(phrase, 2);
+	ft_putchar_fd(' ', 2);
+	put_quoted(path);
+	ft_putstr_fd(": ", 2);
+	ft_putstr_fd(strerror(err), 2);
+	ft_putchar_fd('\n', 2);
 }
