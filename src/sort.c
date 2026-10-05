@@ -1,19 +1,30 @@
 #include "../lib/ft_ls.h"
 
+/*
+ * Linked-list merge sort.
+ *
+ * Default order: name (byte compare, LC_ALL=C style).
+ * -t: newest mtime first (Linux st_mtim.tv_nsec), then name; only if both ok.
+ * -r: reverse the comparison result.
+ */
+
+/* Modification time in whole seconds. */
 static long long	mtime_sec(struct stat *st)
 {
 	return ((long long)st->st_mtime);
 }
 
+/* Modification time nanoseconds (Linux st_mtim). */
 static long long	mtime_nsec(struct stat *st)
 {
-#if defined(__APPLE__)
-	return ((long long)st->st_mtimespec.tv_nsec);
-#else
 	return ((long long)st->st_mtim.tv_nsec);
-#endif
 }
 
+/*
+ * Orders two entries for display.
+ * Default: by name. With -t: newest mtime first (nsec, then name).
+ * With -r: reverse the final result.
+ */
 static int	cmp_files(t_file *a, t_file *b, t_flags *flags)
 {
 	int			cmp;
@@ -45,6 +56,7 @@ static int	cmp_files(t_file *a, t_file *b, t_flags *flags)
 	return (cmp);
 }
 
+/* Merges two already-sorted lists into one sorted list. */
 static t_file	*merge_files(t_file *a, t_file *b, t_flags *flags)
 {
 	t_file	dummy;
@@ -73,6 +85,10 @@ static t_file	*merge_files(t_file *a, t_file *b, t_flags *flags)
 	return (dummy.next);
 }
 
+/*
+ * Splits a list into two halves with slow/fast pointers.
+ * *left keeps the first half, *right gets the second.
+ */
 static void	split_files(t_file *src, t_file **left, t_file **right)
 {
 	t_file	*slow;
@@ -90,6 +106,10 @@ static void	split_files(t_file *src, t_file **left, t_file **right)
 	slow->next = NULL;
 }
 
+/*
+ * Stable merge sort of a linked list (O(n log n)).
+ * Returns the new head of the sorted list.
+ */
 t_file	*sort_files(t_file *list, t_flags *flags)
 {
 	t_file	*left;

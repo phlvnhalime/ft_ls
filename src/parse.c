@@ -1,6 +1,14 @@
 #include "../lib/ft_ls.h"
 
+/*
+ * Command-line parsing.
+ *
+ * Supports combined flags (-laR), flags after operands, and "--".
+ * Rejects unknown letters and unsupported long options (--foo).
+ * Default operand is "." when none is given.
+ */
 
+/* Prints GNU ls style message for an unknown short option letter. */
 static void	illegal_option(char *prog, char option)
 {
 	ft_putstr_fd(prog, 2);
@@ -11,6 +19,18 @@ static void	illegal_option(char *prog, char option)
 	ft_putstr_fd(" --help' for more information.\n", 2);
 }
 
+/* Prints GNU ls style message for an unsupported long option (--foo). */
+static void	unrecognized_option(char *prog, char *arg)
+{
+	ft_putstr_fd(prog, 2);
+	ft_putstr_fd(": unrecognized option '", 2);
+	ft_putstr_fd(arg, 2);
+	ft_putstr_fd("'\nTry '", 2);
+	ft_putstr_fd(prog, 2);
+	ft_putstr_fd(" --help' for more information.\n", 2);
+}
+
+/* Returns 1 if a and b are the same C string, otherwise 0. */
 static int	same_word(char *a, char *b)
 {
 	int	i;
@@ -21,6 +41,10 @@ static int	same_word(char *a, char *b)
 	return (a[i] == '\0' && b[i] == '\0');
 }
 
+/*
+ * Returns 1 if arg looks like an option word (-l, -la, --help).
+ * A lone "-" is a path, not an option.
+ */
 static int	is_flag_word(char *arg)
 {
 	if (arg[0] != '-')
@@ -29,16 +53,12 @@ static int	is_flag_word(char *arg)
 		return (0);
 	return (1);
 }
+
 /*
-	This function sets the flag to true if the option is found in the argument.
-		l -> long format
-		R -> recursive
-		a -> all files
-		r -> reverse
-		t -> time
-	if the option is not found, it returns 1.
-	if the option is found, it returns 0.
-*/
+ * Turns on one flag letter.
+ * Supported: l (long), R (recursive), a (all), r (reverse), t (time).
+ * Returns 0 on success, 1 if the letter is unknown.
+ */
 static int	set_flag(t_flags *flags, char option)
 {
 	if (option == 'l')
@@ -56,10 +76,20 @@ static int	set_flag(t_flags *flags, char option)
 	return (0);
 }
 
+/*
+ * Reads one option word such as "-laR".
+ * Long options ("--all") are rejected like GNU ls.
+ * Returns 0 on success, 1 after printing an error.
+ */
 static int	read_flags(t_flags *flags, char *prog, char *arg)
 {
 	int	i;
 
+	if (arg[1] == '-')
+	{
+		unrecognized_option(prog, arg);
+		return (1);
+	}
 	i = 1;
 	while (arg[i])
 	{
@@ -73,6 +103,7 @@ static int	read_flags(t_flags *flags, char *prog, char *arg)
 	return (0);
 }
 
+/* Clears flags and path list before parsing argv. */
 static void	init_args(t_args *args)
 {
 	args->flags.l = false;
@@ -84,6 +115,10 @@ static void	init_args(t_args *args)
 	args->path_count = 0;
 }
 
+/*
+ * Allocates the operand array (at most ac pointers).
+ * Returns 0 on success, 2 on malloc failure.
+ */
 static int	alloc_paths(t_args *args, int ac, char *prog)
 {
 	args->paths = malloc(sizeof(char *) * (size_t)ac);
@@ -96,6 +131,10 @@ static int	alloc_paths(t_args *args, int ac, char *prog)
 	return (0);
 }
 
+/*
+ * Sorts one argv word: "--" ends options, -flags set options, else path.
+ * Returns 0 on success, 1 on an invalid option.
+ */
 static int	take_argument(t_args *args, char **av, int i, int *paths_only)
 {
 	if (!*paths_only && same_word(av[i], "--"))
@@ -114,6 +153,10 @@ static int	take_argument(t_args *args, char **av, int i, int *paths_only)
 	return (0);
 }
 
+/*
+ * Fills args from the command line. Uses "." when no path is given.
+ * Returns 0 on success, 2 on bad option or malloc failure.
+ */
 int	parse_args(int ac, char **av, t_args *args)
 {
 	int	i;
