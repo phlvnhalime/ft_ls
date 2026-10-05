@@ -14,6 +14,7 @@
 # include <stdbool.h> // true, false
 # include <errno.h>
 # include <sys/types.h>
+# include "libft.h"
 
 typedef struct s_flags
 {
@@ -44,14 +45,10 @@ typedef struct s_file
 
 int		parse_args(int ac, char **av, t_args *args);
 int		run_ls(t_args *args, char *prog);
-size_t	ft_strlen(char *str);
 int		ft_strcmp(char *a, char *b);
-char	*ft_strdup(char *str);
 char	*join_path(char *dir, char *name);
-void	ft_putchar_fd(int fd, char c);
-void	ft_putstr_fd(int fd, char *str);
-void	print_error(char *prog, char *path, int err);
+void	print_error(char *prog, char *phrase, char *path, int err);
 t_file	*sort_files(t_file *list, t_flags *flags);
-void	print_files(t_file *list, t_flags *flags, int as_dir);
+void	print_files(t_file *list, t_flags *flags, int as_dir, t_file *extra);
 
 #endif
