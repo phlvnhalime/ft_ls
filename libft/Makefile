@@ -23,16 +23,25 @@ OBJS = ${SRCS:.c=.o}
 
 RM = rm -f
 
+ifndef V
+Q = @
+else
+Q =
+endif
+
 all: ${NAME}
 
-${NAME}: ${OBJS} 
-	${LIBC} ${NAME} ${OBJS}
+${NAME}: ${OBJS}
+	$(Q)${LIBC} ${NAME} ${OBJS}
+
+%.o: %.c
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	${RM} ${OBJS}
+	$(Q)${RM} ${OBJS}
 
 fclean: clean
-	${RM} ${NAME}
+	$(Q)${RM} ${NAME}
 
 re: fclean all
 
