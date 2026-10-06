@@ -1,54 +1,38 @@
-#include "../lib/ft_ls.h"
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   sort.c                                             :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: hpehliva <hpehliva@student.42heilbronn.de  +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/10/06 18:40:00 by hpehliva          #+#    #+#             */
+/*   Updated: 2026/10/06 18:40:00 by hpehliva         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
 
-/*
- * Linked-list merge sort.
- *
- * Default order: name (byte compare, LC_ALL=C style).
- * -t: newest mtime first (Linux st_mtim.tv_nsec), then name; only if both ok.
- * -r: reverse the comparison result.
- */
+#include "../inc/ft_ls.h"
 
-/* Modification time in whole seconds. */
-static long long	mtime_sec(struct stat *st)
+static int	cmp_time(t_file *a, t_file *b)
 {
-	return ((long long)st->st_mtime);
+	long long	d;
+
+	d = (long long)a->st.st_mtime - (long long)b->st.st_mtime;
+	if (d != 0)
+		return ((d > 0) - (d < 0));
+	d = (long long)a->st.st_mtim.tv_nsec
+		- (long long)b->st.st_mtim.tv_nsec;
+	if (d != 0)
+		return ((d > 0) - (d < 0));
+	return (0);
 }
 
-/* Modification time nanoseconds (Linux st_mtim). */
-static long long	mtime_nsec(struct stat *st)
-{
-	return ((long long)st->st_mtim.tv_nsec);
-}
-
-/*
- * Orders two entries for display.
- * Default: by name. With -t: newest mtime first (nsec, then name).
- * With -r: reverse the final result.
- */
 static int	cmp_files(t_file *a, t_file *b, t_flags *flags)
 {
-	int			cmp;
-	long long	a_sec;
-	long long	b_sec;
-	long long	a_nsec;
-	long long	b_nsec;
+	int	cmp;
 
 	cmp = 0;
 	if (flags->t && a->ok && b->ok)
-	{
-		a_sec = mtime_sec(&a->st);
-		b_sec = mtime_sec(&b->st);
-		if (a_sec != b_sec)
-			cmp = (a_sec > b_sec) - (a_sec < b_sec);
-		else
-		{
-			a_nsec = mtime_nsec(&a->st);
-			b_nsec = mtime_nsec(&b->st);
-			if (a_nsec != b_nsec)
-				cmp = (a_nsec > b_nsec) - (a_nsec < b_nsec);
-		}
-		cmp = -cmp;
-	}
+		cmp = -cmp_time(a, b);
 	if (cmp == 0)
 		cmp = ft_strcmp(a->name, b->name);
 	if (flags->r)
@@ -56,7 +40,6 @@ static int	cmp_files(t_file *a, t_file *b, t_flags *flags)
 	return (cmp);
 }
 
-/* Merges two already-sorted lists into one sorted list. */
 static t_file	*merge_files(t_file *a, t_file *b, t_flags *flags)
 {
 	t_file	dummy;
@@ -85,10 +68,6 @@ static t_file	*merge_files(t_file *a, t_file *b, t_flags *flags)
 	return (dummy.next);
 }
 
-/*
- * Splits a list into two halves with slow/fast pointers.
- * *left keeps the first half, *right gets the second.
- */
 static void	split_files(t_file *src, t_file **left, t_file **right)
 {
 	t_file	*slow;
@@ -106,10 +85,6 @@ static void	split_files(t_file *src, t_file **left, t_file **right)
 	slow->next = NULL;
 }
 
-/*
- * Stable merge sort of a linked list (O(n log n)).
- * Returns the new head of the sorted list.
- */
 t_file	*sort_files(t_file *list, t_flags *flags)
 {
 	t_file	*left;

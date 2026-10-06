@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   parse_msg.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: hpehliva <hpehliva@student.42heilbronn.de  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,16 +10,24 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "inc/ft_ls.h"
+#include "../inc/ft_ls.h"
 
-int	main(int ac, char **av)
+void	illegal_option(char *prog, char option)
 {
-	t_args	args;
-	int		status;
+	ft_putstr_fd(prog, 2);
+	ft_putstr_fd(": invalid option -- \'", 2);
+	ft_putchar_fd(option, 2);
+	ft_putstr_fd("\'\nTry \'", 2);
+	ft_putstr_fd(prog, 2);
+	ft_putstr_fd(" --help\' for more information.\n", 2);
+}
 
-	status = parse_args(ac, av, &args);
-	if (status == 0)
-		status = run_ls(&args, av[0]);
-	free(args.paths);
-	return (status);
+void	unrecognized_option(char *prog, char *arg)
+{
+	ft_putstr_fd(prog, 2);
+	ft_putstr_fd(": unrecognized option \'", 2);
+	ft_putstr_fd(arg, 2);
+	ft_putstr_fd("\'\nTry \'", 2);
+	ft_putstr_fd(prog, 2);
+	ft_putstr_fd(" --help\' for more information.\n", 2);
 }
